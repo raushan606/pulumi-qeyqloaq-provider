@@ -1,0 +1,10 @@
+config:
+  pulumi-keycloak-local:dbHost: postgres.keycloak-local.svc.cluster.local
+  pulumi-keycloak-local:dbPort: "5432"
+  pulumi-keycloak-local:dbUser: keycloak
+  pulumi-keycloak-local:dbPassword:
+    secure: AAABAN6krExWNfeicqVIxhhxHH0nuciV/BePNdCDAxMMbsdPQoRwEhVsZw==
+  pulumi-keycloak-local:dbName: keycloak
+  pulumi-keycloak-local:keycloakHost: 127.0.0.1:49153
+  pulumi-keycloak-local:namespace: keycloak-local
+  pulumi-keycloak-local:helmRepository: local
