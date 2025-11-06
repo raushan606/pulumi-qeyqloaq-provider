@@ -26,54 +26,13 @@ const dbPasswordSecret = new k8s.core.v1.Secret("keycloak-db-password", {
     },
 });
 
-// --- KEYCLOAK HELM RELEASE ---
-const keycloakHelm = new k8s.helm.v3.Release("keycloak", {
-    chart: "keycloak",
-    version: "24.7.5", // Set your desired Bitnami chart version
-    namespace,
-    repositoryOpts: {
-        repo: "https://charts.bitnami.com/bitnami",
-    },
-    values: {
-        global: {
-            security: {
-                allowInsecureImages: true,
-            }
-        },
-        image: {
-            registry: "payara.azurecr.io",
-            repository: "payara-qube/keycloak",
-            tag: "26.3.0.0",
-            pullPolicy: "IfNotPresent",
-            pullSecrets: imagePullSecret ? [imagePullSecret] : undefined,
-        },
-        postgresql: {
-            enabled: false,
-        },
-        externalDatabase: {
-            host: dbHost,
-            port: dbPort,
-            user: dbUser,
-            database: dbName,
-            existingSecret: dbPasswordSecret.metadata.name,
-            existingSecretKey: "db-password",
-        },
-        auth: {
-            adminUser: "admin",
-            adminPassword: "admin123", // For local testing only! Use a secret in production.
-        },
-        proxy: "edge",
-        production: false,
-    },
-}, { dependsOn: [dbPasswordSecret, ns] });
-
 // --- CUSTOM KEYCLOAK PROVIDER ---
-const customKeycloakProvider = new customKeycloak.Provider("custom-keycloak", {
+const customKeycloakProvider = new customKeycloak.Provider("custom-keycloak-provider", {
     url: pulumi.interpolate`http://${keycloakHost}/`,
     username: "admin",
-    password: "admin123",
+    password: "admin",
     realm: "master",
-}, { dependsOn: [keycloakHelm] });
+}, { dependsOn: [ns] });
 
 // --- REALM MANAGEMENT WITH CUSTOM PROVIDER ---
 const realmName = "test-realm";
@@ -102,10 +61,10 @@ const keycloakProvider = new keycloak.Provider("keycloak", {
     url: pulumi.interpolate`http://${keycloakHost}/`,
     clientId: "admin-cli",
     username: "admin",
-    password: "admin123",
+    password: "admin",
     initialLogin: false,
     clientTimeout: 30,
-}, { dependsOn: [keycloakHelm, testRealm] });
+}, { dependsOn: [testRealm] });
 
 // --- CLIENTS ---
 const appMgmtClientSecret = new RandomPassword("app-mgmt-client-secret", {
@@ -140,7 +99,7 @@ const appMgmtClient = new keycloak.openid.Client("app-mgmt", {
 const appMgmtClientScope = new keycloak.openid.ClientScope("app-mgmt-client-scope", {
     name: "app-mgmt",
     description: "Test Application Management",
-    realmId: testRealm.name, // Implicit dependency through output reference
+    realmId: testRealm.name,
     includeInTokenScope: true,
     consentScreenText: "Access to Manage applications",
 }, { provider: keycloakProvider });
@@ -164,12 +123,12 @@ for (const roleDef of appMgmtRoleDefs) {
 
 // --- GROUPS ---
 const cloudAdmins = new keycloak.Group("cloud-admins", {
-    realmId: testRealm.name, // Implicit dependency through output reference
+    realmId: testRealm.name,
     name: "cloud-admins",
 }, { provider: keycloakProvider });
 
 const cloudUsers = new keycloak.Group("cloud-users", {
-    realmId: testRealm.name, // Implicit dependency through output reference
+    realmId: testRealm.name,
     name: "cloud-users",
 }, { provider: keycloakProvider });
 
@@ -188,7 +147,7 @@ const cloudUsersAppMgmtGR = new keycloak.GroupRoles("cloud-users-app-mgmt", {
 
 // --- DEFAULT GROUP ASSIGNMENT ---
 const defaultGroups = new keycloak.DefaultGroups("default-groups", {
-    realmId: testRealm.name, // Implicit dependency through output reference
+    realmId: testRealm.name,
     groupIds: [cloudUsers.id],
 }, { provider: keycloakProvider, dependsOn: [cloudUsers] });
 
