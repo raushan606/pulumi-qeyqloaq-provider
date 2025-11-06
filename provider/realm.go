@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Nerzal/gocloak/v13"
+	gocloak "github.com/Nerzal/gocloak/v13"
 	"github.com/pulumi/pulumi-go-provider/infer"
 )
 
@@ -89,15 +89,14 @@ type RealmState struct {
 	SmtpServer *SmtpServerConfig `pulumi:"smtpServer,optional"`
 }
 
-// List of fields that this provider manages (merge strategy)
-var managedFields = []string{
-	"realm", "enabled", "displayName", "displayNameHtml",
-	"loginTheme", "accountTheme", "adminTheme", "emailTheme", "smtpServer",
-}
-
 // Annotate provides schema documentation for the Realm resource
 func (r *Realm) Annotate(a infer.Annotator) {
 	a.Describe(&r, "A Keycloak realm resource that preserves manual changes to unmanaged attributes")
+}
+
+// WireDependencies controls how outputs and secrets flow through values
+func (r *Realm) WireDependencies(f infer.FieldSelector, args *RealmArgs, state *RealmState) {
+	// Wire dependencies for proper resource tracking
 }
 
 // Annotate provides schema documentation for RealmArgs

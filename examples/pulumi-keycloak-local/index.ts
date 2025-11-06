@@ -1,11 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import * as keycloak from "@pulumi/keycloak";
-import * as customKeycloak from "@keycloak/keycloak";
+import * as customKeycloak from "@qeyqloaq/keycloak"
 import { RandomPassword } from "@pulumi/random";
-
-// Import the Realm resource directly
-const { Realm } = require("@keycloak/keycloak/provider");
 
 // --- CONFIGURATION ---
 const config = new pulumi.Config();
@@ -80,7 +77,7 @@ const customKeycloakProvider = new customKeycloak.Provider("custom-keycloak", {
 
 // --- REALM MANAGEMENT WITH CUSTOM PROVIDER ---
 const realmName = "test-realm";
-const testRealm = new Realm(realmName, {
+const testRealm = new customKeycloak.Realm(realmName, {
     name: realmName,
     enabled: true,
     displayName: "Test Realm",
@@ -100,6 +97,7 @@ const testRealm = new Realm(realmName, {
 }, { provider: customKeycloakProvider });
 
 // --- STANDARD KEYCLOAK PROVIDER FOR CLIENT MANAGEMENT ---
+// The provider will implicitly wait for the realm through output dependencies
 const keycloakProvider = new keycloak.Provider("keycloak", {
     url: pulumi.interpolate`http://${keycloakHost}/`,
     clientId: "admin-cli",
@@ -117,7 +115,7 @@ const appMgmtClientSecret = new RandomPassword("app-mgmt-client-secret", {
 });
 
 const appMgmtClient = new keycloak.openid.Client("app-mgmt", {
-    realmId: testRealm.name, // Use the name from our custom realm
+    realmId: testRealm.name, // Use the name from our custom realm - this creates implicit dependency
     enabled: true,
     accessType: "CONFIDENTIAL",
     name: "Application Management",
@@ -142,10 +140,10 @@ const appMgmtClient = new keycloak.openid.Client("app-mgmt", {
 const appMgmtClientScope = new keycloak.openid.ClientScope("app-mgmt-client-scope", {
     name: "app-mgmt",
     description: "Test Application Management",
-    realmId: testRealm.name,
+    realmId: testRealm.name, // Implicit dependency through output reference
     includeInTokenScope: true,
     consentScreenText: "Access to Manage applications",
-}, { provider: keycloakProvider, dependsOn: [testRealm] });
+}, { provider: keycloakProvider });
 
 // --- CLIENT ROLES ---
 const appMgmtRoles: { [name: string]: keycloak.Role } = {};
@@ -166,14 +164,14 @@ for (const roleDef of appMgmtRoleDefs) {
 
 // --- GROUPS ---
 const cloudAdmins = new keycloak.Group("cloud-admins", {
-    realmId: testRealm.name,
+    realmId: testRealm.name, // Implicit dependency through output reference
     name: "cloud-admins",
-}, { provider: keycloakProvider, dependsOn: [testRealm] });
+}, { provider: keycloakProvider });
 
 const cloudUsers = new keycloak.Group("cloud-users", {
-    realmId: testRealm.name,
+    realmId: testRealm.name, // Implicit dependency through output reference
     name: "cloud-users",
-}, { provider: keycloakProvider, dependsOn: [testRealm] });
+}, { provider: keycloakProvider });
 
 // --- ASSIGN ROLES TO GROUPS ---
 const cloudAdminAppMgmtGR = new keycloak.GroupRoles("cloud-admin-app-mgmt", {
@@ -190,7 +188,7 @@ const cloudUsersAppMgmtGR = new keycloak.GroupRoles("cloud-users-app-mgmt", {
 
 // --- DEFAULT GROUP ASSIGNMENT ---
 const defaultGroups = new keycloak.DefaultGroups("default-groups", {
-    realmId: testRealm.name,
+    realmId: testRealm.name, // Implicit dependency through output reference
     groupIds: [cloudUsers.id],
 }, { provider: keycloakProvider, dependsOn: [cloudUsers] });
 

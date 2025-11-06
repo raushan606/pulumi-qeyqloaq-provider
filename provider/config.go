@@ -13,19 +13,19 @@ import (
 type ProviderConfig struct {
 	// Keycloak server URL (required)
 	URL string `pulumi:"url"`
-	
+
 	// Admin username (required)
 	Username string `pulumi:"username"`
-	
-	// Admin password (required)  
+
+	// Admin password (required)
 	Password string `pulumi:"password"`
-	
+
 	// Admin realm (optional, defaults to "master")
 	Realm *string `pulumi:"realm,optional"`
-	
+
 	// Base path for Keycloak (optional, defaults to "/")
 	BasePath *string `pulumi:"basePath,optional"`
-	
+
 	// Whether to use insecure connections (optional, defaults to false)
 	Insecure *bool `pulumi:"insecure,optional"`
 }
@@ -38,7 +38,7 @@ func (config *ProviderConfig) Annotate(a infer.Annotator) {
 	a.Describe(&config.Realm, "Keycloak admin realm")
 	a.Describe(&config.BasePath, "Base path for Keycloak API")
 	a.Describe(&config.Insecure, "Whether to allow insecure connections")
-	
+
 	// Set default values
 	a.SetDefault(&config.Realm, "master")
 	a.SetDefault(&config.BasePath, "/")
@@ -70,7 +70,7 @@ func (p *KeycloakProvider) Configure(ctx context.Context, config ProviderConfig)
 	if config.Password == "" {
 		return fmt.Errorf("keycloak password is required")
 	}
-	
+
 	// Set defaults
 	if config.Realm == nil {
 		defaultRealm := "master"
@@ -84,21 +84,21 @@ func (p *KeycloakProvider) Configure(ctx context.Context, config ProviderConfig)
 		defaultInsecure := false
 		config.Insecure = &defaultInsecure
 	}
-	
+
 	p.config = &config
-	
+
 	// Create Keycloak client
 	client := gocloak.NewClient(config.URL)
-	
+
 	// Authenticate and get token
 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
 	if err != nil {
 		return fmt.Errorf("failed to authenticate with Keycloak: %w", err)
 	}
-	
+
 	p.client = client
 	p.token = token
-	
+
 	return nil
 }
 
@@ -132,15 +132,15 @@ func GetProviderConfigFromEnv() ProviderConfig {
 		Username: getEnvOrDefault("KEYCLOAK_USERNAME", ""),
 		Password: getEnvOrDefault("KEYCLOAK_PASSWORD", ""),
 	}
-	
+
 	if realm := getEnvOrDefault("KEYCLOAK_REALM", ""); realm != "" {
 		config.Realm = &realm
 	}
-	
+
 	if basePath := getEnvOrDefault("KEYCLOAK_BASE_PATH", ""); basePath != "" {
 		config.BasePath = &basePath
 	}
-	
+
 	return config
 }
 

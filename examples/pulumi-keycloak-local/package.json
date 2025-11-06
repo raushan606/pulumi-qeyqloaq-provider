@@ -6,7 +6,7 @@
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "@keycloak/keycloak": "file:../../sdk/nodejs",
+        "@qeyqloaq/keycloak": "file:../../sdk/nodejs",
         "@pulumi/keycloak": "^6.5.0",
         "@pulumi/kubernetes": "^4.23.0",
         "@pulumi/pulumi": "^3.178.0",

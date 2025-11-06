@@ -1,3 +1,4 @@
+// Package main runs the provider's gRPC server.
 package main
 
 import (
@@ -5,28 +6,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pulumi/pulumi-go-provider/infer"
-	"github.com/raushan606/pulumi-keycloak/provider/pkg/provider"
+	keycloak "github.com/raushan606/pulumi-qeyqloaq-provider/provider"
 )
 
+// Serve the provider against Pulumi's Provider protocol.
 func main() {
-	// Create the provider
-	prov, err := infer.NewProviderBuilder().
-		WithResources(
-			infer.Resource(&provider.Realm{}),
-		).
-		WithNamespace("keycloak").
-		Build()
-	
+	err := keycloak.Provider().Run(context.Background(), keycloak.Name, keycloak.Version)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error building provider: %s\n", err.Error())
-		os.Exit(1)
-	}
-	
-	// Run the provider
-	err = prov.Run(context.Background(), "keycloak", "0.1.0")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Error: %s", err.Error())
 		os.Exit(1)
 	}
 }
