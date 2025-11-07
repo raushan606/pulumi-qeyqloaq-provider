@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/pulumi/pulumi-go-provider/infer"
@@ -11,23 +10,12 @@ import (
 
 // ProviderConfig holds the configuration for the Keycloak provider
 type ProviderConfig struct {
-	// Keycloak server URL (required)
-	URL string `pulumi:"url"`
-
-	// Admin username (required)
-	Username string `pulumi:"username"`
-
-	// Admin password (required)
-	Password string `pulumi:"password"`
-
-	// Admin realm (optional, defaults to "master")
-	Realm *string `pulumi:"realm,optional"`
-
-	// Base path for Keycloak (optional, defaults to "/")
-	BasePath *string `pulumi:"basePath,optional"`
-
-	// Whether to use insecure connections (optional, defaults to false)
-	Insecure *bool `pulumi:"insecure,optional"`
+	URL      string  `pulumi:"url"`               // Keycloak server URL (required)
+	Username string  `pulumi:"username"`          // Keycloak admin username (required)
+	Password string  `pulumi:"password"`          // Keycloak admin password (required)
+	Realm    *string `pulumi:"realm,optional"`    // Keycloak admin realm (optional, defaults to "master")
+	BasePath *string `pulumi:"basePath,optional"` // Base path for Keycloak (optional, defaults to "/")
+	Insecure *bool   `pulumi:"insecure,optional"` // Whether to use insecure connections (optional, defaults to false)
 }
 
 // Annotate provides schema documentation for ProviderConfig
@@ -39,7 +27,6 @@ func (config *ProviderConfig) Annotate(a infer.Annotator) {
 	a.Describe(&config.BasePath, "Base path for Keycloak API")
 	a.Describe(&config.Insecure, "Whether to allow insecure connections")
 
-	// Set default values
 	a.SetDefault(&config.Realm, "master")
 	a.SetDefault(&config.BasePath, "/")
 	a.SetDefault(&config.Insecure, false)
@@ -60,7 +47,6 @@ type clientKey struct{}
 
 // Configure sets up the provider with the given configuration
 func (p *KeycloakProvider) Configure(ctx context.Context, config ProviderConfig) error {
-	// Validate required fields
 	if config.URL == "" {
 		return fmt.Errorf("keycloak URL is required")
 	}
@@ -87,10 +73,8 @@ func (p *KeycloakProvider) Configure(ctx context.Context, config ProviderConfig)
 
 	p.config = &config
 
-	// Create Keycloak client
 	client := gocloak.NewClient(config.URL)
 
-	// Authenticate and get token
 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
 	if err != nil {
 		return fmt.Errorf("failed to authenticate with Keycloak: %w", err)
@@ -102,7 +86,6 @@ func (p *KeycloakProvider) Configure(ctx context.Context, config ProviderConfig)
 	return nil
 }
 
-// Helper function to get Keycloak client from context
 func getKeycloakClient(ctx context.Context) *gocloak.GoCloak {
 	if client, ok := ctx.Value(clientKey{}).(*gocloak.GoCloak); ok {
 		return client
@@ -110,43 +93,9 @@ func getKeycloakClient(ctx context.Context) *gocloak.GoCloak {
 	panic("Keycloak client not found in context")
 }
 
-// Helper function to get provider config from context
 func getProviderConfig(ctx context.Context) *ProviderConfig {
 	if config, ok := ctx.Value(configKey{}).(*ProviderConfig); ok {
 		return config
 	}
 	panic("Provider config not found in context")
-}
-
-// Helper function to create context with client and config
-func withKeycloakContext(ctx context.Context, provider *KeycloakProvider) context.Context {
-	ctx = context.WithValue(ctx, configKey{}, provider.config)
-	ctx = context.WithValue(ctx, clientKey{}, provider.client)
-	return ctx
-}
-
-// GetProviderConfigFromEnv loads provider configuration from environment variables
-func GetProviderConfigFromEnv() ProviderConfig {
-	config := ProviderConfig{
-		URL:      getEnvOrDefault("KEYCLOAK_URL", ""),
-		Username: getEnvOrDefault("KEYCLOAK_USERNAME", ""),
-		Password: getEnvOrDefault("KEYCLOAK_PASSWORD", ""),
-	}
-
-	if realm := getEnvOrDefault("KEYCLOAK_REALM", ""); realm != "" {
-		config.Realm = &realm
-	}
-
-	if basePath := getEnvOrDefault("KEYCLOAK_BASE_PATH", ""); basePath != "" {
-		config.BasePath = &basePath
-	}
-
-	return config
-}
-
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

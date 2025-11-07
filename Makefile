@@ -38,18 +38,15 @@ install-local: build
 	@echo "✅ Installed $(PROVIDER_BINARY) to ~/bin"
 	@echo "⚠️  Make sure ~/bin is in your PATH"
 
-# Generate schema
-schema: build
-	@echo "Generating schema..."
-	cd provider && $(PWD)/$(BUILD_DIR)/$(PROVIDER_BINARY) schema > ../$(SCHEMA_FILE)
-	@echo "✅ Generated $(SCHEMA_FILE)"
-
 # Generate SDKs
 generate-sdk: build
 	@echo "Generating SDKs..."
 	pulumi package gen-sdk --language typescript ./$(BUILD_DIR)/$(PROVIDER_BINARY)
 	pulumi package gen-sdk --language java ./$(BUILD_DIR)/$(PROVIDER_BINARY)
 	@echo "✅ Generated TypeScript and Java SDKs"
+	# Install dependencies for generated SDKs
+	cd sdk/nodejs && npm install
+	@echo "✅ Installed dependencies for TypeScript SDK"
 
 # Generate TypeScript SDK only
 generate-sdk-typescript: build

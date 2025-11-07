@@ -1,0 +1,14 @@
+{
+    "name": "qeycloak-typescript",
+    "main": "index.ts",
+    "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@pulumi/pulumi": "^3.113.0",
+        "@pulumi/keycloak": "^6.5.0",
+        "@pulumi/kubernetes": "^4.23.0",
+        "@qeyqloaq/keycloak": "file:../../sdk/nodejs"
+    }
+}
