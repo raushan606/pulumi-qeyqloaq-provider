@@ -1,4 +1,4 @@
-VERSION := 0.1.0
+VERSION := 1.0.0
 PROVIDER := keycloak
 PROJECT := github.com/raushan606/pulumi-keycloak
 

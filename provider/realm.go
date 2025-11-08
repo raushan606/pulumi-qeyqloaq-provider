@@ -146,8 +146,8 @@ func (state *RealmState) Annotate(a infer.Annotator) {
 
 func (r *Realm) Create(ctx context.Context, req infer.CreateRequest[RealmArgs]) (infer.CreateResponse[RealmState], error) {
 	config := infer.GetConfig[ProviderConfig](ctx)
-
 	client := gocloak.NewClient(config.URL)
+
 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
 	if err != nil {
 		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
@@ -176,7 +176,6 @@ func (r *Realm) Create(ctx context.Context, req infer.CreateRequest[RealmArgs]) 
 		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to create realm: %w", err)
 	}
 
-	// Read the current state
 	state, err := readRealmState(ctx, client, token.AccessToken, req.Inputs.Name)
 	if err != nil {
 		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
@@ -196,154 +195,224 @@ func (*Realm) Check(ctx context.Context, req infer.CheckRequest) (infer.CheckRes
 	}, err
 }
 
-// // Update implementation - only updates managed fields
-// func (r *Realm) Update(ctx context.Context, req infer.UpdateRequest[RealmArgs, RealmState]) (infer.UpdateResponse[RealmState], error) {
-// 	config := getProviderConfig(ctx)
-// 	client := getKeycloakClient(ctx)
+// Update implementation - only updates managed fields
+func (r *Realm) Update(ctx context.Context, req infer.UpdateRequest[RealmArgs, RealmState]) (infer.UpdateResponse[RealmState], error) {
+	config := infer.GetConfig[ProviderConfig](ctx)
+	client := gocloak.NewClient(config.URL)
 
-// 	// Authenticate to get fresh token
-// 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
-// 	if err != nil {
-// 		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
-// 	}
+	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
+	if err != nil {
+		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
+	}
 
-// 	if req.DryRun {
-// 		return infer.UpdateResponse[RealmState]{
-// 			Output: RealmState{
-// 				ID:              req.Inputs.Name,
-// 				Name:            req.Inputs.Name,
-// 				Enabled:         req.Inputs.Enabled,
-// 				DisplayName:     req.Inputs.DisplayName,
-// 				DisplayNameHtml: req.Inputs.DisplayNameHtml,
-// 				LoginTheme:      req.Inputs.LoginTheme,
-// 				AccountTheme:    req.Inputs.AccountTheme,
-// 				AdminTheme:      req.Inputs.AdminTheme,
-// 				EmailTheme:      req.Inputs.EmailTheme,
-// 				SmtpServer:      req.Inputs.SmtpServer,
-// 			},
-// 		}, nil
-// 	}
+	if req.DryRun {
+		return infer.UpdateResponse[RealmState]{
+			Output: RealmState{
+				ID:              req.Inputs.Name,
+				Name:            req.Inputs.Name,
+				Enabled:         req.Inputs.Enabled,
+				DisplayName:     req.Inputs.DisplayName,
+				DisplayNameHtml: req.Inputs.DisplayNameHtml,
+				LoginTheme:      req.Inputs.LoginTheme,
+				AccountTheme:    req.Inputs.AccountTheme,
+				AdminTheme:      req.Inputs.AdminTheme,
+				EmailTheme:      req.Inputs.EmailTheme,
+				SmtpServer:      req.Inputs.SmtpServer,
+			},
+		}, nil
+	}
 
-// 	// Update only managed fields (merge strategy)
-// 	err = r.updateManagedFields(ctx, client, token.AccessToken, req.Inputs)
-// 	if err != nil {
-// 		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to update managed fields: %w", err)
-// 	}
+	// Update only managed fields (merge strategy)
+	err = updateManagedFields(ctx, client, token.AccessToken, req.Inputs)
+	if err != nil {
+		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to update managed fields: %w", err)
+	}
 
-// 	// Read the current state
-// 	state, err := r.readRealmState(ctx, client, token.AccessToken, req.Inputs.Name)
-// 	if err != nil {
-// 		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
-// 	}
+	// Read the current state
+	state, err := readRealmState(ctx, client, token.AccessToken, req.Inputs.Name)
+	if err != nil {
+		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
+	}
 
-// 	return infer.UpdateResponse[RealmState]{
-// 		Output: state,
-// 	}, nil
-// }
+	return infer.UpdateResponse[RealmState]{
+		Output: state,
+	}, nil
+}
 
-// // Delete implementation
-// func (r *Realm) Delete(ctx context.Context, req infer.DeleteRequest[RealmState]) (infer.DeleteResponse, error) {
-// 	config := getProviderConfig(ctx)
-// 	client := getKeycloakClient(ctx)
+func (r *Realm) Delete(ctx context.Context, req infer.DeleteRequest[RealmState]) (infer.DeleteResponse, error) {
+	config := infer.GetConfig[ProviderConfig](ctx)
+	client := gocloak.NewClient(config.URL)
 
-// 	// Authenticate to get fresh token
-// 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
-// 	if err != nil {
-// 		return infer.DeleteResponse{}, fmt.Errorf("failed to authenticate: %w", err)
-// 	}
+	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
+	if err != nil {
+		return infer.DeleteResponse{}, fmt.Errorf("failed to authenticate: %w", err)
+	}
 
-// 	err = client.DeleteRealm(ctx, token.AccessToken, req.State.Name)
-// 	if err != nil {
-// 		// Check if realm was already deleted
-// 		exists, checkErr := realmExists(ctx, client, req.State.Name)
-// 		if checkErr == nil && !exists {
-// 			// Realm already deleted, that's okay
-// 			return infer.DeleteResponse{}, nil
-// 		}
-// 		return infer.DeleteResponse{}, fmt.Errorf("failed to delete realm: %w", err)
-// 	}
+	err = client.DeleteRealm(ctx, token.AccessToken, req.State.Name)
+	if err != nil {
+		// Check if realm was already deleted
+		exists, checkErr := realmExistsWithClient(ctx, client, token.AccessToken, req.State.Name)
+		if checkErr == nil && !exists {
+			return infer.DeleteResponse{}, nil
+		}
+		return infer.DeleteResponse{}, fmt.Errorf("failed to delete realm: %w", err)
+	}
 
-// 	return infer.DeleteResponse{}, nil
-// }
+	return infer.DeleteResponse{}, nil
+}
 
-// // Read implementation
-// func (r *Realm) Read(ctx context.Context, req infer.ReadRequest[RealmArgs, RealmState]) (infer.ReadResponse[RealmArgs, RealmState], error) {
-// 	config := getProviderConfig(ctx)
-// 	client := getKeycloakClient(ctx)
+func (r *Realm) Read(ctx context.Context, req infer.ReadRequest[RealmArgs, RealmState]) (infer.ReadResponse[RealmArgs, RealmState], error) {
+	config := infer.GetConfig[ProviderConfig](ctx)
+	client := gocloak.NewClient(config.URL)
 
-// 	// Authenticate to get fresh token
-// 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
-// 	if err != nil {
-// 		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
-// 	}
+	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
+	if err != nil {
+		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
+	}
 
-// 	// Check if realm exists
-// 	exists, err := realmExists(ctx, client, req.ID)
-// 	if err != nil {
-// 		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to check if realm exists: %w", err)
-// 	}
+	realmName := req.ID
+	if realmName == "" && req.State.Name != "" {
+		realmName = req.State.Name
+	}
 
-// 	if !exists {
-// 		// Realm doesn't exist, return empty response
-// 		return infer.ReadResponse[RealmArgs, RealmState]{}, nil
-// 	}
+	// If we still don't have a realm name, return empty
+	if realmName == "" {
+		return infer.ReadResponse[RealmArgs, RealmState]{}, nil
+	}
 
-// 	// Read the current state
-// 	state, err := r.readRealmState(ctx, client, token.AccessToken, req.ID)
-// 	if err != nil {
-// 		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
-// 	}
+	exists, err := realmExistsWithClient(ctx, client, token.AccessToken, realmName)
+	if err != nil {
+		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to check if realm exists: %w", err)
+	}
 
-// 	return infer.ReadResponse[RealmArgs, RealmState]{
-// 		ID:     req.ID,
-// 		Inputs: req.Inputs,
-// 		State:  state,
-// 	}, nil
-// }
+	// If realm doesn't exist, signal deletion by returning empty response
+	if !exists {
+		return infer.ReadResponse[RealmArgs, RealmState]{}, nil
+	}
+
+	state, err := readRealmState(ctx, client, token.AccessToken, realmName)
+	if err != nil {
+		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
+	}
+
+	return infer.ReadResponse[RealmArgs, RealmState]{
+		ID:     realmName,
+		Inputs: req.Inputs,
+		State:  state,
+	}, nil
+}
+
+// Diff computes the difference between two states and determines if an update is needed
+func (r *Realm) Diff(ctx context.Context, req infer.DiffRequest[RealmArgs, RealmState]) (infer.DiffResponse, error) {
+	// Check if the realm name changed (requires replacement)
+	if req.Inputs.Name != req.State.Name {
+		return infer.DiffResponse{
+			HasChanges:          true,
+			DeleteBeforeReplace: true,
+		}, nil
+	}
+
+	// Check if any managed fields changed
+	hasChanges := false
+
+	if req.Inputs.Enabled != nil && !ptrBoolEqual(req.State.Enabled, req.Inputs.Enabled) {
+		hasChanges = true
+	}
+
+	if req.Inputs.DisplayName != nil && !ptrStringEqual(req.State.DisplayName, req.Inputs.DisplayName) {
+		hasChanges = true
+	}
+
+	if req.Inputs.DisplayNameHtml != nil && !ptrStringEqual(req.State.DisplayNameHtml, req.Inputs.DisplayNameHtml) {
+		hasChanges = true
+	}
+
+	if req.Inputs.LoginTheme != nil && !ptrStringEqual(req.State.LoginTheme, req.Inputs.LoginTheme) {
+		hasChanges = true
+	}
+
+	if req.Inputs.AccountTheme != nil && !ptrStringEqual(req.State.AccountTheme, req.Inputs.AccountTheme) {
+		hasChanges = true
+	}
+
+	if req.Inputs.AdminTheme != nil && !ptrStringEqual(req.State.AdminTheme, req.Inputs.AdminTheme) {
+		hasChanges = true
+	}
+
+	if req.Inputs.EmailTheme != nil && !ptrStringEqual(req.State.EmailTheme, req.Inputs.EmailTheme) {
+		hasChanges = true
+	}
+
+	if req.Inputs.SmtpServer != nil {
+		smtpConfig := convertSmtpConfig(req.Inputs.SmtpServer)
+		stateSmtpConfig := convertSmtpConfig(req.State.SmtpServer)
+		if !smtpConfigEqual(&smtpConfig, &stateSmtpConfig) {
+			hasChanges = true
+		}
+	}
+
+	return infer.DiffResponse{
+		HasChanges: hasChanges,
+	}, nil
+}
 
 // updateManagedFields updates only the fields managed by this provider
 func updateManagedFields(ctx context.Context, client *gocloak.GoCloak, token string, args RealmArgs) error {
-	// Get current realm to preserve unmanaged fields
 	currentRealm, err := client.GetRealm(ctx, token, args.Name)
 	if err != nil {
 		return fmt.Errorf("failed to get current realm: %w", err)
 	}
 
-	// Create update payload with only managed fields
+	// Track if any managed field has changed
+	hasChanges := false
+
 	updateRealm := *currentRealm
 
-	// Update managed fields
-	if args.Enabled != nil {
+	if args.Enabled != nil && !ptrBoolEqual(currentRealm.Enabled, args.Enabled) {
 		updateRealm.Enabled = args.Enabled
+		hasChanges = true
 	}
 
-	if args.DisplayName != nil {
+	if args.DisplayName != nil && !ptrStringEqual(currentRealm.DisplayName, args.DisplayName) {
 		updateRealm.DisplayName = args.DisplayName
+		hasChanges = true
 	}
 
-	if args.DisplayNameHtml != nil {
+	if args.DisplayNameHtml != nil && !ptrStringEqual(currentRealm.DisplayNameHTML, args.DisplayNameHtml) {
 		updateRealm.DisplayNameHTML = args.DisplayNameHtml
+		hasChanges = true
 	}
 
-	if args.LoginTheme != nil {
+	if args.LoginTheme != nil && !ptrStringEqual(currentRealm.LoginTheme, args.LoginTheme) {
 		updateRealm.LoginTheme = args.LoginTheme
+		hasChanges = true
 	}
 
-	if args.AccountTheme != nil {
+	if args.AccountTheme != nil && !ptrStringEqual(currentRealm.AccountTheme, args.AccountTheme) {
 		updateRealm.AccountTheme = args.AccountTheme
+		hasChanges = true
 	}
 
-	if args.AdminTheme != nil {
+	if args.AdminTheme != nil && !ptrStringEqual(currentRealm.AdminTheme, args.AdminTheme) {
 		updateRealm.AdminTheme = args.AdminTheme
+		hasChanges = true
 	}
 
-	if args.EmailTheme != nil {
+	if args.EmailTheme != nil && !ptrStringEqual(currentRealm.EmailTheme, args.EmailTheme) {
 		updateRealm.EmailTheme = args.EmailTheme
+		hasChanges = true
 	}
 
 	if args.SmtpServer != nil {
 		smtpConfig := convertSmtpConfig(args.SmtpServer)
-		updateRealm.SMTPServer = &smtpConfig
+		if !smtpConfigEqual(currentRealm.SMTPServer, &smtpConfig) {
+			updateRealm.SMTPServer = &smtpConfig
+			hasChanges = true
+		}
+	}
+
+	if !hasChanges {
+		return nil
 	}
 
 	err = client.UpdateRealm(ctx, token, updateRealm)
@@ -354,7 +423,6 @@ func updateManagedFields(ctx context.Context, client *gocloak.GoCloak, token str
 	return nil
 }
 
-// reads the current state, focusing on managed fields
 func readRealmState(ctx context.Context, client *gocloak.GoCloak, token, realmName string) (RealmState, error) {
 	realm, err := client.GetRealm(ctx, token, realmName)
 	if err != nil {
@@ -511,8 +579,6 @@ func parseInt(s string) *int {
 	if s == "" {
 		return nil
 	}
-
-	// Simple integer parsing
 	result := 0
 	for _, char := range s {
 		if char < '0' || char > '9' {
@@ -521,4 +587,42 @@ func parseInt(s string) *int {
 		result = result*10 + int(char-'0')
 	}
 	return &result
+}
+
+func ptrStringEqual(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func ptrBoolEqual(a, b *bool) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func smtpConfigEqual(a *map[string]string, b *map[string]string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if len(*a) != len(*b) {
+		return false
+	}
+	for k, v := range *a {
+		if bv, ok := (*b)[k]; !ok || bv != v {
+			return false
+		}
+	}
+	return true
 }
