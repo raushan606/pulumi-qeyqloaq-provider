@@ -13,38 +13,55 @@ import (
 // preserving manual changes to other realm attributes in Keycloak UI
 type Realm struct{}
 
-// RealmArgs represents the input arguments for creating/updating a realm
-// Only these fields will be managed by Pulumi - all others are preserved
 type RealmArgs struct {
-	// The name of the realm (required)
-	Name string `pulumi:"name"`
-
-	// Whether the realm is enabled (managed field)
-	Enabled *bool `pulumi:"enabled,optional"`
-
-	// Display name for the realm (managed field)
-	DisplayName *string `pulumi:"displayName,optional"`
-
-	// HTML display name (managed field)
-	DisplayNameHtml *string `pulumi:"displayNameHtml,optional"`
-
-	// Login theme (managed field)
-	LoginTheme *string `pulumi:"loginTheme,optional"`
-
-	// Account theme (managed field)
-	AccountTheme *string `pulumi:"accountTheme,optional"`
-
-	// Admin theme (managed field)
-	AdminTheme *string `pulumi:"adminTheme,optional"`
-
-	// Email theme (managed field)
-	EmailTheme *string `pulumi:"emailTheme,optional"`
-
-	// SMTP server configuration (managed field)
-	SmtpServer *SmtpServerConfig `pulumi:"smtpServer,optional"`
+	Name            string            `pulumi:"name"`
+	Enabled         *bool             `pulumi:"enabled,optional"`
+	DisplayName     *string           `pulumi:"displayName,optional"`
+	DisplayNameHtml *string           `pulumi:"displayNameHtml,optional"`
+	LoginTheme      *string           `pulumi:"loginTheme,optional"`
+	AccountTheme    *string           `pulumi:"accountTheme,optional"`
+	AdminTheme      *string           `pulumi:"adminTheme,optional"`
+	EmailTheme      *string           `pulumi:"emailTheme,optional"`
+	SmtpServer      *SmtpServerConfig `pulumi:"smtpServer,optional"`
 }
 
-// SmtpServerConfig represents SMTP configuration for the realm
+func (args RealmArgs) toKeycloakRealm() gocloak.RealmRepresentation {
+	keycloakRealmRepresentation := gocloak.RealmRepresentation{
+		Realm: &args.Name,
+	}
+
+	if args.Enabled != nil {
+		keycloakRealmRepresentation.Enabled = args.Enabled
+	} else {
+		enabled := true
+		keycloakRealmRepresentation.Enabled = &enabled
+	}
+
+	if args.DisplayName != nil {
+		keycloakRealmRepresentation.DisplayName = args.DisplayName
+	}
+	if args.DisplayNameHtml != nil {
+		keycloakRealmRepresentation.DisplayNameHTML = args.DisplayNameHtml
+	}
+	if args.LoginTheme != nil {
+		keycloakRealmRepresentation.LoginTheme = args.LoginTheme
+	}
+	if args.AccountTheme != nil {
+		keycloakRealmRepresentation.AccountTheme = args.AccountTheme
+	}
+	if args.AdminTheme != nil {
+		keycloakRealmRepresentation.AdminTheme = args.AdminTheme
+	}
+	if args.EmailTheme != nil {
+		keycloakRealmRepresentation.EmailTheme = args.EmailTheme
+	}
+	if args.SmtpServer != nil {
+		smtpConfig := convertSmtpConfig(args.SmtpServer)
+		keycloakRealmRepresentation.SMTPServer = &smtpConfig
+	}
+	return keycloakRealmRepresentation
+}
+
 type SmtpServerConfig struct {
 	Host     *string `pulumi:"host,optional"`
 	Port     *int    `pulumi:"port,optional"`
@@ -56,37 +73,17 @@ type SmtpServerConfig struct {
 	Password *string `pulumi:"password,optional"`
 }
 
-// RealmState represents the output state of a realm resource
 type RealmState struct {
-	// The ID of the realm (same as name)
-	ID string `pulumi:"realmId"`
-
-	// The name of the realm
-	Name string `pulumi:"name"`
-
-	// Whether the realm is enabled
-	Enabled *bool `pulumi:"enabled,optional"`
-
-	// Display name for the realm
-	DisplayName *string `pulumi:"displayName,optional"`
-
-	// HTML display name
-	DisplayNameHtml *string `pulumi:"displayNameHtml,optional"`
-
-	// Login theme
-	LoginTheme *string `pulumi:"loginTheme,optional"`
-
-	// Account theme
-	AccountTheme *string `pulumi:"accountTheme,optional"`
-
-	// Admin theme
-	AdminTheme *string `pulumi:"adminTheme,optional"`
-
-	// Email theme
-	EmailTheme *string `pulumi:"emailTheme,optional"`
-
-	// SMTP server configuration
-	SmtpServer *SmtpServerConfig `pulumi:"smtpServer,optional"`
+	ID              string            `pulumi:"realmId"` // The ID of the realm (same as name)
+	Name            string            `pulumi:"name"`
+	Enabled         *bool             `pulumi:"enabled,optional"`
+	DisplayName     *string           `pulumi:"displayName,optional"`
+	DisplayNameHtml *string           `pulumi:"displayNameHtml,optional"`
+	LoginTheme      *string           `pulumi:"loginTheme,optional"`
+	AccountTheme    *string           `pulumi:"accountTheme,optional"`
+	AdminTheme      *string           `pulumi:"adminTheme,optional"`
+	EmailTheme      *string           `pulumi:"emailTheme,optional"`
+	SmtpServer      *SmtpServerConfig `pulumi:"smtpServer,optional"`
 }
 
 // Annotate provides schema documentation for the Realm resource
@@ -95,11 +92,16 @@ func (r *Realm) Annotate(a infer.Annotator) {
 }
 
 // WireDependencies controls how outputs and secrets flow through values
-func (r *Realm) WireDependencies(f infer.FieldSelector, args *RealmArgs, state *RealmState) {
-	// Wire dependencies for proper resource tracking
+func (Realm) WireDependencies(f infer.FieldSelector, args *RealmArgs, state *RealmState) {
+	f.OutputField(&state.Name).DependsOn(f.InputField(&args.Name))
+	f.OutputField(&state.DisplayName).DependsOn(f.InputField(&args.DisplayName))
+	f.OutputField(&state.LoginTheme).DependsOn(f.InputField(&args.LoginTheme))
+	f.OutputField(&state.AccountTheme).DependsOn(f.InputField(&args.AccountTheme))
+	f.OutputField(&state.AdminTheme).DependsOn(f.InputField(&args.AdminTheme))
+	f.OutputField(&state.EmailTheme).DependsOn(f.InputField(&args.EmailTheme))
+	f.OutputField(&state.SmtpServer).DependsOn(f.InputField(&args.SmtpServer))
 }
 
-// Annotate provides schema documentation for RealmArgs
 func (args *RealmArgs) Annotate(a infer.Annotator) {
 	a.Describe(&args.Name, "The name of the realm")
 	a.Describe(&args.Enabled, "Whether the realm is enabled")
@@ -111,11 +113,9 @@ func (args *RealmArgs) Annotate(a infer.Annotator) {
 	a.Describe(&args.EmailTheme, "Theme used for email templates")
 	a.Describe(&args.SmtpServer, "SMTP server configuration for email sending")
 
-	// Set default values
 	a.SetDefault(&args.Enabled, true)
 }
 
-// Annotate provides schema documentation for SmtpServerConfig
 func (smtp *SmtpServerConfig) Annotate(a infer.Annotator) {
 	a.Describe(&smtp.Host, "SMTP server hostname")
 	a.Describe(&smtp.Port, "SMTP server port")
@@ -126,13 +126,11 @@ func (smtp *SmtpServerConfig) Annotate(a infer.Annotator) {
 	a.Describe(&smtp.Username, "SMTP username")
 	a.Describe(&smtp.Password, "SMTP password")
 
-	// Set default values
 	a.SetDefault(&smtp.Port, 587)
 	a.SetDefault(&smtp.StartTls, true)
 	a.SetDefault(&smtp.Auth, false)
 }
 
-// Annotate provides schema documentation for RealmState
 func (state *RealmState) Annotate(a infer.Annotator) {
 	a.Describe(&state.ID, "The unique identifier of the realm")
 	a.Describe(&state.Name, "The name of the realm")
@@ -146,21 +144,13 @@ func (state *RealmState) Annotate(a infer.Annotator) {
 	a.Describe(&state.SmtpServer, "SMTP server configuration for email sending")
 }
 
-// Create implementation for the realm resource
 func (r *Realm) Create(ctx context.Context, req infer.CreateRequest[RealmArgs]) (infer.CreateResponse[RealmState], error) {
-	config := getProviderConfig(ctx)
-	client := getKeycloakClient(ctx)
+	config := infer.GetConfig[ProviderConfig](ctx)
 
-	// Authenticate to get fresh token
+	client := gocloak.NewClient(config.URL)
 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
 	if err != nil {
 		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
-	}
-
-	// Check if realm already exists
-	exists, err := realmExists(ctx, client, req.Inputs.Name)
-	if err != nil {
-		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to check if realm exists: %w", err)
 	}
 
 	if req.DryRun {
@@ -181,36 +171,13 @@ func (r *Realm) Create(ctx context.Context, req infer.CreateRequest[RealmArgs]) 
 		}, nil
 	}
 
-	// Create realm if it doesn't exist with minimal config
-	if !exists {
-		enabled := true
-		if req.Inputs.Enabled != nil {
-			enabled = *req.Inputs.Enabled
-		}
-
-		minimalRealm := gocloak.RealmRepresentation{
-			Realm:   &req.Inputs.Name,
-			Enabled: &enabled,
-		}
-
-		if req.Inputs.DisplayName != nil {
-			minimalRealm.DisplayName = req.Inputs.DisplayName
-		}
-
-		_, err = client.CreateRealm(ctx, token.AccessToken, minimalRealm)
-		if err != nil {
-			return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to create realm: %w", err)
-		}
-	}
-
-	// Update with managed fields only (merge strategy)
-	err = r.updateManagedFields(ctx, client, token.AccessToken, req.Inputs)
+	_, err = client.CreateRealm(ctx, token.AccessToken, req.Inputs.toKeycloakRealm())
 	if err != nil {
-		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to update managed fields: %w", err)
+		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to create realm: %w", err)
 	}
 
 	// Read the current state
-	state, err := r.readRealmState(ctx, client, token.AccessToken, req.Inputs.Name)
+	state, err := readRealmState(ctx, client, token.AccessToken, req.Inputs.Name)
 	if err != nil {
 		return infer.CreateResponse[RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
 	}
@@ -221,113 +188,121 @@ func (r *Realm) Create(ctx context.Context, req infer.CreateRequest[RealmArgs]) 
 	}, nil
 }
 
-// Update implementation - only updates managed fields
-func (r *Realm) Update(ctx context.Context, req infer.UpdateRequest[RealmArgs, RealmState]) (infer.UpdateResponse[RealmState], error) {
-	config := getProviderConfig(ctx)
-	client := getKeycloakClient(ctx)
-
-	// Authenticate to get fresh token
-	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
-	if err != nil {
-		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
-	}
-
-	if req.DryRun {
-		return infer.UpdateResponse[RealmState]{
-			Output: RealmState{
-				ID:              req.Inputs.Name,
-				Name:            req.Inputs.Name,
-				Enabled:         req.Inputs.Enabled,
-				DisplayName:     req.Inputs.DisplayName,
-				DisplayNameHtml: req.Inputs.DisplayNameHtml,
-				LoginTheme:      req.Inputs.LoginTheme,
-				AccountTheme:    req.Inputs.AccountTheme,
-				AdminTheme:      req.Inputs.AdminTheme,
-				EmailTheme:      req.Inputs.EmailTheme,
-				SmtpServer:      req.Inputs.SmtpServer,
-			},
-		}, nil
-	}
-
-	// Update only managed fields (merge strategy)
-	err = r.updateManagedFields(ctx, client, token.AccessToken, req.Inputs)
-	if err != nil {
-		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to update managed fields: %w", err)
-	}
-
-	// Read the current state
-	state, err := r.readRealmState(ctx, client, token.AccessToken, req.Inputs.Name)
-	if err != nil {
-		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
-	}
-
-	return infer.UpdateResponse[RealmState]{
-		Output: state,
-	}, nil
+func (*Realm) Check(ctx context.Context, req infer.CheckRequest) (infer.CheckResponse[RealmArgs], error) {
+	args, f, err := infer.DefaultCheck[RealmArgs](ctx, req.NewInputs)
+	return infer.CheckResponse[RealmArgs]{
+		Inputs:   args,
+		Failures: f,
+	}, err
 }
 
-// Delete implementation
-func (r *Realm) Delete(ctx context.Context, req infer.DeleteRequest[RealmState]) (infer.DeleteResponse, error) {
-	config := getProviderConfig(ctx)
-	client := getKeycloakClient(ctx)
+// // Update implementation - only updates managed fields
+// func (r *Realm) Update(ctx context.Context, req infer.UpdateRequest[RealmArgs, RealmState]) (infer.UpdateResponse[RealmState], error) {
+// 	config := getProviderConfig(ctx)
+// 	client := getKeycloakClient(ctx)
 
-	// Authenticate to get fresh token
-	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
-	if err != nil {
-		return infer.DeleteResponse{}, fmt.Errorf("failed to authenticate: %w", err)
-	}
+// 	// Authenticate to get fresh token
+// 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
+// 	if err != nil {
+// 		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
+// 	}
 
-	err = client.DeleteRealm(ctx, token.AccessToken, req.State.Name)
-	if err != nil {
-		// Check if realm was already deleted
-		exists, checkErr := realmExists(ctx, client, req.State.Name)
-		if checkErr == nil && !exists {
-			// Realm already deleted, that's okay
-			return infer.DeleteResponse{}, nil
-		}
-		return infer.DeleteResponse{}, fmt.Errorf("failed to delete realm: %w", err)
-	}
+// 	if req.DryRun {
+// 		return infer.UpdateResponse[RealmState]{
+// 			Output: RealmState{
+// 				ID:              req.Inputs.Name,
+// 				Name:            req.Inputs.Name,
+// 				Enabled:         req.Inputs.Enabled,
+// 				DisplayName:     req.Inputs.DisplayName,
+// 				DisplayNameHtml: req.Inputs.DisplayNameHtml,
+// 				LoginTheme:      req.Inputs.LoginTheme,
+// 				AccountTheme:    req.Inputs.AccountTheme,
+// 				AdminTheme:      req.Inputs.AdminTheme,
+// 				EmailTheme:      req.Inputs.EmailTheme,
+// 				SmtpServer:      req.Inputs.SmtpServer,
+// 			},
+// 		}, nil
+// 	}
 
-	return infer.DeleteResponse{}, nil
-}
+// 	// Update only managed fields (merge strategy)
+// 	err = r.updateManagedFields(ctx, client, token.AccessToken, req.Inputs)
+// 	if err != nil {
+// 		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to update managed fields: %w", err)
+// 	}
 
-// Read implementation
-func (r *Realm) Read(ctx context.Context, req infer.ReadRequest[RealmArgs, RealmState]) (infer.ReadResponse[RealmArgs, RealmState], error) {
-	config := getProviderConfig(ctx)
-	client := getKeycloakClient(ctx)
+// 	// Read the current state
+// 	state, err := r.readRealmState(ctx, client, token.AccessToken, req.Inputs.Name)
+// 	if err != nil {
+// 		return infer.UpdateResponse[RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
+// 	}
 
-	// Authenticate to get fresh token
-	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
-	if err != nil {
-		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
-	}
+// 	return infer.UpdateResponse[RealmState]{
+// 		Output: state,
+// 	}, nil
+// }
 
-	// Check if realm exists
-	exists, err := realmExists(ctx, client, req.ID)
-	if err != nil {
-		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to check if realm exists: %w", err)
-	}
+// // Delete implementation
+// func (r *Realm) Delete(ctx context.Context, req infer.DeleteRequest[RealmState]) (infer.DeleteResponse, error) {
+// 	config := getProviderConfig(ctx)
+// 	client := getKeycloakClient(ctx)
 
-	if !exists {
-		// Realm doesn't exist, return empty response
-		return infer.ReadResponse[RealmArgs, RealmState]{}, nil
-	}
+// 	// Authenticate to get fresh token
+// 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
+// 	if err != nil {
+// 		return infer.DeleteResponse{}, fmt.Errorf("failed to authenticate: %w", err)
+// 	}
 
-	// Read the current state
-	state, err := r.readRealmState(ctx, client, token.AccessToken, req.ID)
-	if err != nil {
-		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
-	}
+// 	err = client.DeleteRealm(ctx, token.AccessToken, req.State.Name)
+// 	if err != nil {
+// 		// Check if realm was already deleted
+// 		exists, checkErr := realmExists(ctx, client, req.State.Name)
+// 		if checkErr == nil && !exists {
+// 			// Realm already deleted, that's okay
+// 			return infer.DeleteResponse{}, nil
+// 		}
+// 		return infer.DeleteResponse{}, fmt.Errorf("failed to delete realm: %w", err)
+// 	}
 
-	return infer.ReadResponse[RealmArgs, RealmState]{
-		ID:     req.ID,
-		Inputs: req.Inputs,
-		State:  state,
-	}, nil
-}
+// 	return infer.DeleteResponse{}, nil
+// }
+
+// // Read implementation
+// func (r *Realm) Read(ctx context.Context, req infer.ReadRequest[RealmArgs, RealmState]) (infer.ReadResponse[RealmArgs, RealmState], error) {
+// 	config := getProviderConfig(ctx)
+// 	client := getKeycloakClient(ctx)
+
+// 	// Authenticate to get fresh token
+// 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
+// 	if err != nil {
+// 		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to authenticate: %w", err)
+// 	}
+
+// 	// Check if realm exists
+// 	exists, err := realmExists(ctx, client, req.ID)
+// 	if err != nil {
+// 		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to check if realm exists: %w", err)
+// 	}
+
+// 	if !exists {
+// 		// Realm doesn't exist, return empty response
+// 		return infer.ReadResponse[RealmArgs, RealmState]{}, nil
+// 	}
+
+// 	// Read the current state
+// 	state, err := r.readRealmState(ctx, client, token.AccessToken, req.ID)
+// 	if err != nil {
+// 		return infer.ReadResponse[RealmArgs, RealmState]{}, fmt.Errorf("failed to read realm state: %w", err)
+// 	}
+
+// 	return infer.ReadResponse[RealmArgs, RealmState]{
+// 		ID:     req.ID,
+// 		Inputs: req.Inputs,
+// 		State:  state,
+// 	}, nil
+// }
 
 // updateManagedFields updates only the fields managed by this provider
-func (r *Realm) updateManagedFields(ctx context.Context, client *gocloak.GoCloak, token string, args RealmArgs) error {
+func updateManagedFields(ctx context.Context, client *gocloak.GoCloak, token string, args RealmArgs) error {
 	// Get current realm to preserve unmanaged fields
 	currentRealm, err := client.GetRealm(ctx, token, args.Name)
 	if err != nil {
@@ -379,8 +354,8 @@ func (r *Realm) updateManagedFields(ctx context.Context, client *gocloak.GoCloak
 	return nil
 }
 
-// readRealmState reads the current state, focusing on managed fields
-func (r *Realm) readRealmState(ctx context.Context, client *gocloak.GoCloak, token, realmName string) (RealmState, error) {
+// reads the current state, focusing on managed fields
+func readRealmState(ctx context.Context, client *gocloak.GoCloak, token, realmName string) (RealmState, error) {
 	realm, err := client.GetRealm(ctx, token, realmName)
 	if err != nil {
 		return RealmState{}, fmt.Errorf("failed to get realm: %w", err)
@@ -427,15 +402,8 @@ func (r *Realm) readRealmState(ctx context.Context, client *gocloak.GoCloak, tok
 	return state, nil
 }
 
-// Helper functions
-func realmExists(ctx context.Context, client *gocloak.GoCloak, realmName string) (bool, error) {
-	config := getProviderConfig(ctx)
-	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
-	if err != nil {
-		return false, fmt.Errorf("failed to authenticate: %w", err)
-	}
-
-	_, err = client.GetRealm(ctx, token.AccessToken, realmName)
+func realmExistsWithClient(ctx context.Context, client *gocloak.GoCloak, token, realmName string) (bool, error) {
+	_, err := client.GetRealm(ctx, token, realmName)
 	if err != nil {
 		// If it's a 404-like error, realm doesn't exist
 		if err.Error() == "404" || err.Error() == "realm not found" {

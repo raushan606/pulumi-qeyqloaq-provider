@@ -44,7 +44,7 @@ generate-sdk: build
 	pulumi package gen-sdk --language typescript ./$(BUILD_DIR)/$(PROVIDER_BINARY)
 	pulumi package gen-sdk --language java ./$(BUILD_DIR)/$(PROVIDER_BINARY)
 	@echo "✅ Generated TypeScript and Java SDKs"
-	# Install dependencies for generated SDKs
+	@echo "Install dependencies for generated SDKs"
 	cd sdk/nodejs && npm install
 	@echo "✅ Installed dependencies for TypeScript SDK"
 
@@ -59,6 +59,17 @@ generate-sdk-java: build
 	@echo "Generating Java SDK..."
 	pulumi package gen-sdk --language java ./$(BUILD_DIR)/$(PROVIDER_BINARY)
 	@echo "✅ Generated Java SDK in sdk/java"
+
+# Do all above steps in one
+all: build
+	@echo "Make build.."
+	@$(MAKE) build
+	@echo "Make install.."
+	@$(MAKE) install
+	@echo "Make generate-sdk.."
+	@$(MAKE) generate-sdk
+	@echo "All done."
+
 
 # Clean SDKs
 clean-sdk:

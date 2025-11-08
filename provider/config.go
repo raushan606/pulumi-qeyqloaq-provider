@@ -18,7 +18,6 @@ type ProviderConfig struct {
 	Insecure *bool   `pulumi:"insecure,optional"` // Whether to use insecure connections (optional, defaults to false)
 }
 
-// Annotate provides schema documentation for ProviderConfig
 func (config *ProviderConfig) Annotate(a infer.Annotator) {
 	a.Describe(&config.URL, "Keycloak server URL (e.g., http://localhost:8080)")
 	a.Describe(&config.Username, "Keycloak admin username")
@@ -32,20 +31,12 @@ func (config *ProviderConfig) Annotate(a infer.Annotator) {
 	a.SetDefault(&config.Insecure, false)
 }
 
-// KeycloakProvider represents the main provider struct
 type KeycloakProvider struct {
-	config *ProviderConfig
-	client *gocloak.GoCloak
-	token  *gocloak.JWT
+	Config *ProviderConfig
+	Client *gocloak.GoCloak
+	Token  *gocloak.JWT
 }
 
-// configKey is used to store the provider config in context
-type configKey struct{}
-
-// clientKey is used to store the Keycloak client in context
-type clientKey struct{}
-
-// Configure sets up the provider with the given configuration
 func (p *KeycloakProvider) Configure(ctx context.Context, config ProviderConfig) error {
 	if config.URL == "" {
 		return fmt.Errorf("keycloak URL is required")
@@ -71,31 +62,16 @@ func (p *KeycloakProvider) Configure(ctx context.Context, config ProviderConfig)
 		config.Insecure = &defaultInsecure
 	}
 
-	p.config = &config
+	p.Config = &config
 
 	client := gocloak.NewClient(config.URL)
-
 	token, err := client.LoginAdmin(ctx, config.Username, config.Password, *config.Realm)
 	if err != nil {
 		return fmt.Errorf("failed to authenticate with Keycloak: %w", err)
 	}
 
-	p.client = client
-	p.token = token
+	p.Client = client
+	p.Token = token
 
 	return nil
-}
-
-func getKeycloakClient(ctx context.Context) *gocloak.GoCloak {
-	if client, ok := ctx.Value(clientKey{}).(*gocloak.GoCloak); ok {
-		return client
-	}
-	panic("Keycloak client not found in context")
-}
-
-func getProviderConfig(ctx context.Context) *ProviderConfig {
-	if config, ok := ctx.Value(configKey{}).(*ProviderConfig); ok {
-		return config
-	}
-	panic("Provider config not found in context")
 }

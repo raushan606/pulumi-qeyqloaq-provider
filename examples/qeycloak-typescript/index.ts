@@ -3,12 +3,10 @@ import * as k8s from "@pulumi/kubernetes";
 import * as qubecloak from "@qeyqloaq/keycloak"
 
 const namespace = "keycloak-local";
-const keycloakHost = "localhost";
+const keycloakHost = "localhost:8080";
 
-// --- NAMESPACE ---
 const ns = new k8s.core.v1.Namespace(namespace, { metadata: { name: namespace } });
 
-// --- CUSTOM KEYCLOAK PROVIDER ---
 const customKeycloakProvider = new qubecloak.Provider("custom-keycloak-provider", {
     url: pulumi.interpolate`http://${keycloakHost}/`,
     username: "admin",
@@ -16,5 +14,18 @@ const customKeycloakProvider = new qubecloak.Provider("custom-keycloak-provider"
     realm: "master",
 }, { dependsOn: [ns] });
 
+const realm = new qubecloak.Realm("qubecloak-realm", {
+    name: "payara-qube",
+    enabled: true,
+    displayName: "Payara Qube",
+    displayNameHtml: "<div class=\"kc-logo-text\"><span>Payara Qube</span></div>",
+    loginTheme: "payara",
+    accountTheme: "payara",
+    adminTheme: "payara",
+    emailTheme: "payara",
+}, { provider: customKeycloakProvider, dependsOn: [ns] });
+
+
 // --- EXPORTS ---
 export const keycloakAdminUrl = pulumi.interpolate`http://${keycloakHost}/admin`;
+export const realmOutput = realm;
